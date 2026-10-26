@@ -1,7 +1,8 @@
 # Hands-on 2 · Laboratorio interactivo de analizadores léxicos (Lex)
 
 Compiladores · Universidad de Guadalajara  
-Alumno: Emiliano Barraza Cervantes
+Alumno: Alondra Goretti Gonzalez Martinez
+        Barraza Cervantes Emiliano
 
 Simulador paso a paso de un analizador léxico al estilo **Lex/Flex** para un subconjunto de C. Muestra cómo **todas las reglas compiten desde la misma posición**, cómo se aplica la **máxima coincidencia** (y la prioridad por orden en caso de empate) y cómo se **ejecuta la acción** de la regla ganadora (`yytext`, `yyleng`).
 
