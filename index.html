@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Hands-on 2 · Construcción de analizadores léxicos</title>
+<style>
+:root{--bg:#070b14;--p:#0e1524;--p2:#0b1220;--c:#22d3ee;--m:#f472b6;--g:#4ade80;--r:#fb7185;--y:#fbbf24;--v:#a78bfa;--t:#e2e8f0;--d:#64748b;--ln:#1e293b}
+*{box-sizing:border-box}
+body{margin:0;padding:14px;background:var(--bg);color:var(--t);font:14px/1.5 "JetBrains Mono","Fira Code",ui-monospace,monospace}
+.kick{font-size:11px;letter-spacing:3px;text-transform:uppercase;color:var(--d)}
+h1{font-size:20px;margin:0 0 2px;color:var(--c);text-shadow:0 0 12px #22d3ee66}
+.sub{color:var(--d);margin-bottom:12px}
+.card{background:var(--p);border:1px solid var(--ln);border-radius:8px;padding:12px;margin-bottom:12px;min-width:0}
+.card h2{font-size:13px;margin:0 0 8px;color:var(--m);font-weight:600;display:flex;justify-content:space-between;align-items:center;gap:8px}
+.card h2 small{color:var(--d);font-weight:400;font-size:11px}
+.card h2 .no{color:var(--c);margin-right:8px}
+input,select,button,textarea{font:inherit;color:var(--t);background:var(--p2);border:1px solid #334155;border-radius:6px;padding:7px 10px}
+select{border-color:var(--c);max-width:100%}
+button{cursor:pointer}button:hover:not(:disabled){border-color:var(--c)}button:disabled{opacity:.4;cursor:default}
+button.go{background:var(--c);color:#04222a;border-color:var(--c);font-weight:700}
+button.lk{border:0;background:none;color:var(--c);padding:0;text-decoration:underline;text-underline-offset:3px}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--m);outline-offset:2px}
+.bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:8px}.bar.sp{justify-content:space-between}
+.lbl{font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--d);margin-bottom:4px}
+#desc{color:var(--d);font-size:12px}
+/* fase actual */
+#fase{border-left:3px solid var(--c)}
+.pills{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:8px;font-size:12px}
+.pill{padding:2px 10px;border-radius:99px;background:var(--p2);color:var(--d);border:1px solid var(--ln)}
+.pill.on{background:var(--c);color:#04222a;border-color:var(--c);font-weight:700}.pill.ok{color:var(--g);border-color:#14532d}
+.pills i{font-style:normal;color:var(--d)}.pills .paso{margin-left:auto;color:var(--d)}
+#msg{min-height:44px;padding:8px 10px;background:var(--p2);border-left:3px solid var(--m)}
+.meta{display:flex;flex-wrap:wrap;gap:6px 22px;margin-top:8px;color:var(--d);font-size:12px}.meta b{color:var(--t);margin-left:4px}
+/* código fuente */
+.leg{display:flex;flex-wrap:wrap;gap:14px;font-size:11px;color:var(--d);margin-bottom:6px}.leg i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px}
+#codeBox{height:330px;overflow:auto;background:var(--p2);border:1px solid var(--ln);border-radius:6px;padding:6px 0}
+.ln{display:flex;min-height:22px;padding-right:8px}.ln .no{flex:0 0 36px;text-align:right;padding-right:10px;color:#475569;font-size:12px;user-select:none}
+.ln .tx{white-space:pre-wrap;word-break:break-all}
+.x{padding:1px 0;border-radius:2px}.x.nl,.x.tab{color:#334155}.x.tab{display:inline-block;width:4ch}
+.x[data-s="1"]{color:var(--g)}.x[data-s="2"]{background:#f472b640;box-shadow:inset 0 -2px var(--m)}
+.x[data-s="3"]{background:var(--c);color:#04222a;font-weight:700}.x[data-s="3"].nl,.x[data-s="3"].tab{color:#04222a}
+#codeEd{width:100%;height:330px;resize:vertical;white-space:pre;tab-size:4}
+.foot{margin-top:8px;color:var(--d);font-size:11px}
+/* reglas */
+#rules{height:330px;overflow:auto;border:1px solid var(--ln);border-radius:6px;background:var(--p2)}
+.rule{display:grid;grid-template-columns:34px 1fr auto;gap:8px;align-items:center;padding:6px 8px;border-bottom:1px solid var(--ln);cursor:pointer;border-left:3px solid transparent}
+.rule:hover{background:#111b30}.rule .rn{color:var(--d);font-size:12px;text-align:right}
+.rule b{font-size:12px}.rule code{display:block;color:var(--d);font-size:12px;overflow-wrap:anywhere}
+.rule .st{font-size:11px;color:var(--d);text-align:right;max-width:150px}
+.rule.alive{border-left-color:var(--c)}.rule.alive .st{color:var(--c)}
+.rule.acc{border-left-color:var(--g)}.rule.acc .st{color:var(--g)}
+.rule.lose .st{color:var(--y)}.rule.dead{opacity:.5}
+.rule.win{background:#f472b61f;border-left-color:var(--m)}.rule.win .st{color:var(--m);font-weight:700}
+.rule.sel{outline:1px dashed var(--m);outline-offset:-2px}
+.note{color:var(--d);font-size:11px;margin-bottom:6px}
+/* acción y datos */
+.kv{display:grid;grid-template-columns:2fr 1fr;gap:8px;margin-bottom:8px}
+.kv div{background:var(--p2);border:1px solid var(--ln);border-radius:6px;padding:6px 10px}.kv i{display:block;font-style:normal;color:var(--d);font-size:11px}.kv b{font-size:16px;color:var(--c);overflow-wrap:anywhere}
+pre#acc{margin:0 0 8px;padding:10px;border-radius:6px;background:#050912;border:1px solid var(--ln);color:var(--g);white-space:pre-wrap;overflow-wrap:anywhere;min-height:48px}
+pre#acc em{color:var(--m);font-style:normal}
+.tag{font-size:10px;letter-spacing:1.5px;color:var(--c)}
+/* resultado */
+#res{height:300px;overflow:auto;border:1px solid var(--ln);border-radius:6px;background:var(--p2)}
+.tk{display:grid;grid-template-columns:62px minmax(120px,1.3fr) 1.4fr 40px;gap:8px;padding:4px 10px;border-bottom:1px solid var(--ln);font-size:12px}
+.tk .l{overflow-wrap:anywhere}.tk .n{color:var(--d);text-align:right}.tk .p{color:var(--d)}
+.tk.om{opacity:.55;font-style:italic}.tk.er{background:#fb718518}.tk.er .t{color:var(--r)}
+.t-kw{color:var(--c)}.t-id{color:var(--t)}.t-num{color:var(--y)}.t-str{color:var(--g)}.t-op{color:var(--m)}.t-pp{color:var(--v)}.t-pu{color:#94a3b8}
+.vacio{padding:42px 16px;text-align:center;color:var(--d)}
+.cnt{color:var(--d);font-size:12px}
+label.ck{display:inline-flex;gap:6px;align-items:center;font-size:12px;color:var(--d);font-weight:400;cursor:pointer}
+label.ck input{accent-color:var(--c);padding:0}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:12px}@media(max-width:900px){.row{grid-template-columns:1fr}}
+details{color:var(--d);font-size:12px}summary{cursor:pointer;color:var(--t)}details p{margin:8px 0}details a{color:var(--c)}
+dialog{background:var(--p);color:var(--t);border:1px solid var(--c);border-radius:10px;padding:14px;width:min(820px,94vw);box-shadow:0 0 40px #22d3ee33}
+dialog::backdrop{background:#000a}
+dialog .dh{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;color:var(--m);font-weight:600}
+#spec{width:100%;height:340px;resize:vertical;white-space:pre;tab-size:4;font-size:12px}
+#spec[readonly]{background:#050912;color:#d1fae5;cursor:text}
+.tabs{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px}
+.tabs button.on{background:var(--c);color:#04222a;border-color:var(--c);font-weight:700}
+#tabDesc{color:var(--d);font-size:12px;margin-bottom:8px}
+#specMsg{min-height:22px;margin:6px 0;font-size:12px;color:var(--g)}#specMsg.er{color:var(--r)}
+ol.how li{margin-bottom:6px}
+footer{color:var(--d);font-size:11px;text-align:center;padding:8px}
+@media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important;scroll-behavior:auto!important}}
+</style></head><body>
+<div class="kick">Compiladores · Universidad de Guadalajara</div>
+<h1>Construcción de analizadores léxicos</h1>
+<div class="sub">Lexemas, patrones y expresiones regulares al estilo Lex · motor en C++ compilado a WebAssembly <span id="st">(cargando…)</span></div>
+
+<div class="card">
+  <div class="bar sp">
+    <div><div class="lbl">Programa de entrada</div><select id="prog" aria-label="Programa de entrada"></select><div id="desc"></div></div>
+    <div class="bar">
+      <button id="bEd">Editar código</button><button id="bVer">Ver archivo .l</button><button id="bDes">Descargar .l ↓</button><button id="bHow">Cómo recorrer el laboratorio ↗</button>
+    </div>
+  </div>
+  <div class="bar sp">
+    <div class="bar" style="margin:0">
+      <button id="bPrev">← Anterior</button><button class="go" id="bNext">Siguiente carácter →</button><button id="bAct">Siguiente acción</button><button id="bLin">Siguiente línea</button><button id="bAll">Completar análisis</button>
+    </div>
+    <button id="bRst">↺ Reiniciar</button>
+  </div>
+</div>
+
+<div class="card" id="fase">
+  <div class="pills"><span class="pill" id="p1">1 Reconocer</span><i>→</i><span class="pill" id="p2">2 Seleccionar</span><i>→</i><span class="pill" id="p3">3 Ejecutar acción</span><span class="paso" id="paso">Paso 0</span></div>
+  <div id="msg"></div>
+  <div class="meta"><span>Inicio del lexema<b id="mIni">1:1</b></span><span>Explorando<b id="mExp">–</b></span><span>Última aceptación<b id="mAcp">–</b></span></div>
+</div>
+
+<div class="row">
+  <div class="card">
+    <h2><span><span class="no">01</span>Código fuente</span><small id="prg">0% · 0 líneas</small></h2>
+    <div class="leg"><span><i style="background:#4ade8066"></i>Procesado</span><span><i style="background:#f472b680"></i>En reconocimiento</span><span><i style="background:var(--c)"></i>Carácter examinado</span></div>
+    <div id="codeBox"><div id="code"></div></div>
+    <textarea id="codeEd" spellcheck="false" style="display:none" aria-label="Código C de entrada"></textarea>
+    <div class="foot">El programa C es la entrada del analizador. No se ejecuta el programa.</div>
+  </div>
+  <div class="card">
+    <h2><span><span class="no">02</span>Reglas de Lex</span><label class="ck"><input type="checkbox" id="soloC" checked>Solo candidatas</label></h2>
+    <div class="note">Menor número = mayor prioridad. Primero gana la mayor longitud.</div>
+    <div id="rules"></div>
+    <div class="bar sp foot"><button class="lk" id="bExp">Experimentar con las reglas ↗</button><span id="rcnt"></span></div>
+  </div>
+</div>
+
+<div class="row">
+  <div class="card">
+    <h2><span><span class="no">03</span>Acción y datos</span><span class="tag" id="aTag">ESPERANDO SELECCIÓN</span></h2>
+    <div class="kv"><div><i>yytext · texto reconocido</i><b id="yytext">—</b></div><div><i>yyleng · longitud</i><b id="yyleng">—</b></div></div>
+    <pre id="acc"></pre>
+    <div class="foot" id="aTxt"></div>
+  </div>
+  <div class="card">
+    <h2><span><span class="no">04</span>Resultado del análisis</span><button id="bJson">Exportar JSON ↓</button></h2>
+    <div class="bar sp"><label class="ck"><input type="checkbox" id="verOm">Mostrar omisiones</label><span class="cnt" id="cnt"></span></div>
+    <div id="res"></div>
+  </div>
+</div>
+
+<div class="card"><details><summary>Alcance del lenguaje y de la simulación</summary>
+<p>Se simulan la <b>máxima coincidencia</b>, la <b>prioridad por orden</b> y las acciones impresoras de una especificación Lex/Flex. El recorrido carácter por carácter es una visualización didáctica: el motor (C++/WebAssembly) simula todas las reglas en paralelo con un autómata por regla, no reproduce los búferes internos de Flex.</p>
+<p>Subconjunto de C: identificadores ASCII, enteros decimales sin sufijos, decimales con cifras a ambos lados del punto, notación científica, cadenas con escapes de comilla, barra invertida, <code>n</code>, <code>t</code> y <code>r</code>, comentarios y los operadores de las reglas. No se cubren todos los literales (por ejemplo, caracteres entre apóstrofos), operadores ni construcciones de C.</p>
+<p><code>#include</code> y <code>#define</code> se reconocen como texto; no se incorporan cabeceras ni se expanden macros. No se comprueba sintaxis, declaraciones ni tipos. Las acciones solo pueden ser <code>TOKEN("N")</code>, <code>OMITIR("N")</code> o <code>ERROR("N")</code>: no se ejecuta C arbitrario.</p>
+<p>La regla <code>ERROR</code> (<code>.</code>) informa y consume un carácter. Sin esa regla, Lex aplicaría su regla por defecto (copiar el carácter). Los comentarios o cadenas sin cierre no tienen diagnóstico especializado. Las posiciones cuentan desde 1; una tabulación cuenta como un carácter y cada carácter no ASCII cuenta como uno.</p>
+<p>Referencias: <a href="https://westes.github.io/flex/manual/Matching.html" target="_blank" rel="noopener">Flex: selección de coincidencias</a> · <a href="https://westes.github.io/flex/manual/Patterns.html" target="_blank" rel="noopener">Patrones</a> · <a href="https://westes.github.io/flex/manual/Generated-Scanner.html" target="_blank" rel="noopener">Analizador generado</a></p>
+</details></div>
+<footer>Compiladores · Universidad de Guadalajara · Hands-on 2</footer>
+
+<dialog id="dlgL"><div class="dh"><span id="dlgT">Especificación Lex del laboratorio</span><button id="dlgX" aria-label="Cerrar">✕</button></div>
+  <div class="tabs" role="tablist"><button class="on" data-t="0" role="tab">1 · Definiciones</button><button data-t="1" role="tab">2 · Reglas y acciones</button><button data-t="2" role="tab">3 · Código auxiliar</button></div>
+  <div id="tabDesc"></div>
+  <textarea id="spec" spellcheck="false" aria-label="Especificación Lex"></textarea><div id="specMsg"></div>
+  <div class="foot" id="specFoot">Las secciones están separadas por %% en el archivo descargable. La simulación utiliza estas mismas reglas habilitadas y su orden.</div>
+  <div class="bar" style="margin-top:8px"><button class="go" id="spApl">Aplicar reglas</button><button id="spRes">Restaurar originales</button><button id="spCop">Copiar archivo</button><button id="spDes">Descargar .l ↓</button></div></dialog>
+<dialog id="dlgH"><div class="dh"><span>Cómo recorrer el laboratorio</span><button id="dlgHX" aria-label="Cerrar">✕</button></div>
+  <ol class="how">
+    <li>Elige un <b>programa de entrada</b> o pulsa <b>Editar código</b> para escribir el tuyo (es solo texto: no se ejecuta).</li>
+    <li><b>Siguiente carácter</b> avanza un paso del ciclo de Lex: <b>1 Reconocer</b> (cada carácter examinado deja vivas solo las reglas que aún pueden coincidir), <b>2 Seleccionar</b> (gana la coincidencia más larga; en empate, la regla con menor número) y <b>3 Ejecutar acción</b> (se emite el token, se omite el lexema o se informa el error).</li>
+    <li><b>Siguiente acción</b> salta hasta que se ejecute la acción del lexema actual; <b>Siguiente línea</b> termina la línea; <b>Completar análisis</b> lo hace todo; <b>Anterior</b> retrocede un paso. También sirven las flechas ← y →.</li>
+    <li>En <b>Reglas de Lex</b>, «Solo candidatas» oculta las reglas descartadas. Pulsa una regla para ver su patrón y su acción en <b>Acción y datos</b>.</li>
+    <li><b>Experimentar con las reglas</b> abre el archivo <code>.l</code>: edítalo (definiciones, patrones y acciones <code>TOKEN</code>/<code>OMITIR</code>/<code>ERROR</code>) y pulsa <b>Aplicar reglas</b>; el motor en C++ recompila los autómatas al instante.</li>
+    <li><b>Exportar JSON</b> descarga tokens, omisiones y errores del análisis completo.</li>
+  </ol></dialog>
+
+<script>
+const $=id=>document.getElementById(id);
+const h=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const vis=c=>c==='\n'?'↵ (salto de línea)':c==='\t'?'→ (tab)':c===' '?'␣ (espacio)':c;
+const PROG=[
+ {n:'01 · Expresiones',d:'Patrones, lexemas y acciones en una sentencia.',c:'total += precio * 1.25;\n'},
+ {n:'02 · Ciclo for',d:'Máxima coincidencia en palabras reservadas, identificadores y operadores compuestos.',c:'for (int i = 0; i < 10; i++) {\n    suma += i * 2;\n}\n'},
+ {n:'03 · Ciclos y decisiones',d:'Comentarios, condiciones, decimales y notación científica.',c:'while (contador <= 100) {\n    // comentario de línea\n    if (contador % 2 == 0 && valor != 0) {\n        valor -= 1.5e2;\n    } else {\n        contador++;\n    }\n}\n'},
+ {n:'04 · Programa completo en C',d:'Preprocesador, comentarios, cadenas con escapes y un programa entero.',c:'#include <stdio.h>\n#define MAX 10\n\n/* Suma los primeros MAX enteros */\nint main(void) {\n    int i, suma = 0;\n    float promedio;\n    for (i = 1; i <= MAX; i++) {\n        suma += i;   // acumulador\n    }\n    promedio = suma / 2.5e0;\n    printf("Suma: %d\\n", suma);\n    return 0;\n}\n'}
+];
+let M=null,SPEC=null,D=null,SRC='',cells=[],lineOf=[],colOf=[],EV=[],actIdx=[],pre=[],rowHtml=[],idx=-1,prev=null,progName='',cellEls=[],lineEls=[],rowEls=[],mk={pe:0,rs:0,re:0,ex:-1},enc=new TextEncoder(),dec=new TextDecoder();
+
+/* ---- puente con C++/WebAssembly: solo enteros, byte a byte (como el Hands-on 1) ---- */
+function llamar(modo,txt,canal){
+  M._lx_canal(canal);M._lx_limpiar();
+  for(const b of enc.encode(txt))M._lx_byte(b);
+  const n=M._lx_procesar(modo),u=new Uint8Array(n);
+  for(let i=0;i<n;i++)u[i]=M._lx_leer(i);
+  return dec.decode(u);
+}
+const regla=id=>SPEC.reglas[id-1];
+const nom=id=>id>0?regla(id).nombre:'(por defecto)';
+const cat=n=>/^KW_/.test(n)?'t-kw':/^IDENT/.test(n)?'t-id':/^NUM_/.test(n)?'t-num':/^CADENA/.test(n)?'t-str':/^OP_/.test(n)?'t-op':/^PP_/.test(n)?'t-pp':'t-pu';
+
+/* ---- carga de programa y construcción de la línea de tiempo de eventos ---- */
+function analizar(code,nombre){
+  SRC=code;progName=nombre;
+  const r=JSON.parse(llamar(0,code,0));
+  if(!r.ok){$('msg').textContent='✗ '+r.error;return}
+  D=r;cells=Array.from(code);
+  if(D.simbolos!==cells.length)console.warn('símbolos C++ ≠ caracteres JS',D.simbolos,cells.length);
+  let ln=1,col=1;lineOf=[];colOf=[];
+  cells.forEach((c,i)=>{lineOf[i]=ln;colOf[i]=col;if(c==='\n'){ln++;col=1}else col++});
+  EV=[];actIdx=[];
+  D.lexemas.forEach((L,li)=>{L.pasos.forEach((_,si)=>EV.push({t:'c',l:li,s:si}));EV.push({t:'s',l:li});actIdx[li]=EV.length;EV.push({t:'a',l:li})});
+  pre=[{t:0,o:0,e:0}];D.lexemas.forEach(L=>{const p=pre[pre.length-1];pre.push({t:p.t+(L.tipo==='token'),o:p.o+(L.tipo==='omitir'),e:p.e+(L.tipo==='error'||L.tipo==='defecto')})});
+  rowHtml=D.lexemas.map(L=>{const k=L.tipo==='omitir'?' om':L.tipo==='token'?'':' er';const nm=L.tipo==='defecto'?'ECHO':L.nombre;
+    return `<div class="tk${k}" data-k="${L.tipo}"><span class="p">${L.linea}:${L.col}</span><span class="t ${cat(L.nombre)}">${h(nm)}</span><span class="l">${h(L.texto.replace(/\n/g,'↵').replace(/\t/g,'→'))}${L.tipo==='omitir'?'  (omitido)':''}</span><span class="n">#${L.regla||'—'}</span></div>`});
+  montarCodigo();idx=-1;prev=null;render();
+}
+function montarCodigo(){
+  const cont=$('code');cont.textContent='';cellEls=[];lineEls=[];
+  const frag=document.createDocumentFragment();let n=0,tx;
+  const nueva=()=>{n++;const d=document.createElement('div');d.className='ln';d.innerHTML=`<span class="no">${n}</span><span class="tx"></span>`;tx=d.lastChild;lineEls[n]=d;frag.appendChild(d)};
+  nueva();
+  cells.forEach((c,i)=>{const s=document.createElement('span');s.className='x'+(c==='\n'?' nl':c==='\t'?' tab':'');s.textContent=c==='\n'?'↵':c==='\t'?'→':c;s.setAttribute('data-s','0');cellEls[i]=s;tx.appendChild(s);if(c==='\n')nueva()});
+  cont.appendChild(frag);mk={pe:0,rs:0,re:0,ex:-1};
+}
+function pintar(pe,rs,re,ex){
+  const o=mk,pts=[o.pe,o.rs,o.re,o.ex,pe,rs,re,ex].filter(v=>v>=0);
+  const lo=Math.max(0,Math.min(...pts)),hi=Math.min(cells.length-1,Math.max(...pts));
+  const st=(m,i)=>i<m.pe?1:i===m.ex?3:(i>=m.rs&&i<m.re)?2:0,nu={pe,rs,re,ex};
+  for(let i=lo;i<=hi;i++){const a=st(nu,i);if(st(o,i)!==a||cellEls[i].getAttribute('data-s')!==String(a))cellEls[i].setAttribute('data-s',a)}
+  mk=nu;
+}
+function montarReglas(){
+  $('rules').innerHTML=SPEC.reglas.map(r=>`<div class="rule" data-id="${r.id}"><span class="rn">${r.id}</span><div><b>${h(r.nombre)}</b><code>${h(r.patron)}</code></div><span class="st"></span></div>`).join('');
+  rowEls=[null].concat(Array.from($('rules').children));
+}
+
+/* ---- estado derivado del evento actual ---- */
+function estado(){
+  if(idx<0)return{f:0};
+  const e=EV[idx],L=D.lexemas[e.l];
+  return e.t==='c'?{f:1,e,L,P:L.pasos[e.s]}:{f:e.t==='s'?2:3,e,L};
+}
+function razon(L){
+  if(!L.acepta.length)return'Ninguna regla aceptó: Lex aplica su regla por defecto y copia el carácter.';
+  const gan=L.acepta.filter(a=>a[1]===L.len);
+  if(L.acepta.length===1)return`es la única que aceptó (${L.len} car.).`;
+  if(gan.length>1)return`empatan en longitud (${L.len}); gana la de menor número.`;
+  return`acepta la coincidencia más larga (${L.len} car.).`;
+}
+function mensaje(s){
+  if(!EV.length)return'La entrada está vacía: no hay nada que analizar.';
+  if(s.f===0)return'Pulsa «Siguiente carácter» para examinar la entrada. Todas las reglas habilitadas compiten desde la misma posición.';
+  const L=s.L;
+  if(s.f===1){
+    const P=s.P;
+    if(P.e){const b=P.m?`Se queda con la última aceptación: ${nom(P.m)} (${P.ml} car.).`:'Ninguna regla aceptó; se aplicará la regla por defecto.';return`Fin de la entrada: ${P.v.length} regla(s) seguían vivas pero ya no hay más caracteres. ${b}`}
+    const q=`Se examina «${vis(P.c)}» en ${lineOf[P.p]}:${colOf[P.p]}. `;
+    const a=P.a.length?` Aceptan ahora: ${P.a.slice(0,3).map(nom).join(', ')}${P.a.length>3?'…':''}.`:'';
+    return P.v.length?q+`${P.v.length} regla(s) pueden continuar.`+a:q+`Ninguna regla puede continuar: termina el reconocimiento y «${vis(P.c)}» no se consume.`;
+  }
+  if(s.f===2)return`Selección entre ${L.acepta.length} regla(s) que aceptaron: ${L.regla?`gana ${nom(L.regla)} (#${L.regla}), `:''}${razon(L)}`;
+  const ultimo=idx===EV.length-1,fin=ultimo?` Análisis completo: ${D.resumen.tokens} tokens, ${D.resumen.omisiones} omisiones, ${D.resumen.errores} errores.`:'';
+  if(L.tipo==='token')return`Acción de ${L.nombre}: TOKEN → se emite ${L.nombre}("${L.texto}") con yyleng = ${L.len}.`+fin;
+  if(L.tipo==='omitir')return`Acción de ${L.nombre}: OMITIR → el lexema se descarta y no genera token.`+fin;
+  if(L.tipo==='error')return`Acción de ${L.nombre}: ERROR → se informa «${L.texto}» en ${L.linea}:${L.col} y se consume ese carácter.`+fin;
+  return`Regla por defecto de Lex: «${L.texto}» se copia a la salida (ECHO) y se cuenta como no reconocido.`+fin;
+}
+
+/* ---- dibujo ---- */
+function render(){
+  if(!D)return;
+  const s=estado(),n=cells.length,L=s.L,fin=idx===EV.length-1&&idx>=0;
+  ['p1','p2','p3'].forEach((id,i)=>{const e=$(id);e.className='pill'+(s.f===i+1||(s.f===0&&i===0)?' on':s.f>i+1?' ok':'')});
+  $('paso').textContent=`Paso ${idx+1} de ${EV.length}`;
+  $('msg').textContent=mensaje(s);
+  $('mIni').textContent=L?`${L.linea}:${L.col}`:'1:1';
+  $('mExp').textContent=s.f===1&&!s.P.e?`«${vis(s.P.c).split(' ')[0]}» ${lineOf[s.P.p]}:${colOf[s.P.p]}`:s.f===1?'fin de entrada':'–';
+  const mj=s.f===1?{r:s.P.m,l:s.P.ml}:s.f>=2&&L.regla?{r:L.regla,l:L.len}:null;
+  $('mAcp').textContent=mj&&mj.r?`${nom(mj.r)} · ${mj.l} car.`:'–';
+  /* código fuente */
+  let pe=0,rs=0,re=0,ex=-1;
+  if(s.f===1){pe=L.ini;rs=L.ini;re=s.P.p;ex=s.P.e?-1:s.P.p}
+  else if(s.f>=2){pe=L.ini;rs=L.ini;re=L.ini+L.len;if(fin){pe=L.ini+L.len;rs=re=0}}
+  pintar(pe,rs,re,ex);
+  const hecho=s.f===0?0:s.f===3?L.ini+L.len:L.ini;
+  $('prg').textContent=`${n?Math.round(hecho*100/n):0}% · ${D.lineas} líneas`;
+  const foco=ex>=0?ex:(s.f>=1?L.ini:0),fl=lineEls[lineOf[Math.min(foco,n-1)]||1];
+  if(fl&&$('codeEd').style.display==='none'&&idx>=0)fl.scrollIntoView({block:'nearest'});
+  /* reglas */
+  const solo=$('soloC').checked;let vistas=0;
+  const alive=new Set(),accNow=new Set(),last={};
+  if(s.f===1){s.P.v.forEach(x=>alive.add(x));s.P.a.forEach(x=>accNow.add(x));for(let j=0;j<=s.e.s;j++)L.pasos[j].a.forEach(x=>last[x]=j+1)}
+  const acc={};if(s.f>=2)L.acepta.forEach(a=>acc[a[0]]=a[1]);
+  let winRow=null;
+  SPEC.reglas.forEach(r=>{
+    const el=rowEls[r.id];let cl='rule',st='',show=true;
+    if(s.f===0){cl+=' alive';st='Puede continuar'}
+    else if(s.f===1){
+      if(alive.has(r.id)){cl+=accNow.has(r.id)?' acc':' alive';st=accNow.has(r.id)?`Acepta · ${s.P.p-L.ini+1}`:'Puede continuar'}
+      else if(last[r.id]){cl+=' dead';st=`Aceptó antes · ${last[r.id]}`;show=!solo}
+      else{cl+=' dead';st='Descartada';show=!solo}
+    }else{
+      if(L.regla===r.id){cl+=' win';st=`Ganadora · ${L.len}`;winRow=el}
+      else if(acc[r.id]){cl+=' lose';st=acc[r.id]<L.len?`Pierde · ${acc[r.id]} < ${L.len}`:'Pierde por prioridad'}
+      else{cl+=' dead';st='Descartada';show=!solo}
+    }
+    if(prev===r.id)cl+=' sel';
+    el.className=cl;el.lastChild.textContent=st;el.style.display=show?'':'none';if(show)vistas++;
+  });
+  $('rcnt').textContent=`${vistas} de ${SPEC.reglas.length} reglas`;
+  if(winRow)winRow.scrollIntoView({block:'nearest'});
+  /* acción y datos */
+  const sel=prev?regla(prev):(s.f>=2&&L.regla?regla(L.regla):null);
+  $('aTag').textContent=prev?'VISTA PREVIA':s.f===3?'ACCIÓN EJECUTADA':s.f===2?'REGLA SELECCIONADA':'ESPERANDO SELECCIÓN';
+  $('yytext').textContent=s.f>=2?L.texto.replace(/\n/g,'↵').replace(/\t/g,'→'):'—';
+  $('yyleng').textContent=s.f>=2?L.len:'—';
+  $('acc').innerHTML=sel?`<em>${h(sel.patron)}</em>    ${h(sel.accion)}`:(s.f>=2&&!L.regla?'<em>(sin regla)</em>    { ECHO; }':'<em>patrón</em>    { acción en C }');
+  $('aTxt').textContent=prev?`Regla #${sel.id} (${sel.nombre}). Sus acciones posibles: TOKEN imprime y registra, OMITIR descarta, ERROR informa y consume.`:
+    s.f>=2?(L.tipo==='token'?`TOKEN imprime «${L.nombre}  ${L.texto}» y lo agrega al resultado.`:L.tipo==='omitir'?'OMITIR no imprime nada: espacios y comentarios no llegan al analizador sintáctico.':L.tipo==='error'?'ERROR informa el carácter no reconocido y consume uno.':'Sin regla aplicable, Lex copia el carácter a la salida.'):
+    'yytext y yyleng aparecen al seleccionar el lexema que recibirá la acción. Pulsa una regla para consultar su acción.';
+  /* resultado */
+  let k=0;while(k<D.lexemas.length&&actIdx[k]<=idx)k++;
+  const om=$('verOm').checked;
+  const html=[];for(let i=0;i<k;i++){if(D.lexemas[i].tipo==='omitir'&&!om)continue;html.push(rowHtml[i])}
+  $('res').innerHTML=html.length?html.join(''):'<div class="vacio">Aquí aparecerán los tokens cuando se ejecuten las acciones.<br>Reconocer y ejecutar se muestran por separado.</div>';
+  if(html.length)$('res').scrollTop=$('res').scrollHeight;
+  const q=pre[k];$('cnt').textContent=`${q.t} tokens · ${q.o} omisiones · ${q.e} errores`;
+  /* controles */
+  const nada=idx>=EV.length-1;
+  $('bPrev').disabled=idx<0;['bNext','bAct','bLin','bAll'].forEach(b=>$(b).disabled=nada);
+}
+const ir=i=>{idx=Math.max(-1,Math.min(EV.length-1,i));prev=null;render()};
+const sigAccion=()=>{let i=idx+1;while(i<EV.length&&EV[i].t!=='a')i++;ir(i)};
+function sigLinea(){
+  const cur=idx<0?1:D.lexemas[EV[idx].l].linea;
+  for(let ln=cur;ln<=D.lineas;ln++){
+    let ult=-1;D.lexemas.forEach((L,li)=>{if(L.linea===ln)ult=actIdx[li]});
+    if(ult>idx)return ir(ult);
+  }
+  ir(EV.length-1);
+}
+
+/* ---- archivos .l, edición, descargas ---- */
+function bajar(nombre,texto,tipo){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([texto],{type:tipo||'text/plain'}));a.download=nombre;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},500)}
+/* El archivo .l tiene tres secciones separadas por %%: definiciones, reglas y código auxiliar */
+let SEC=['','',''],tabAct=0;
+const TDESC=['Aquí se incluyen las declaraciones en C y los nombres reutilizables de los patrones.',
+ 'Cada regla asocia un patrón con una acción. Menor número = mayor prioridad; el laboratorio simula las acciones TOKEN, OMITIR y ERROR.',
+ 'Estas funciones usan la entrada estándar. yywrap devuelve 1 para indicar que no quedan más archivos; el laboratorio no ejecuta este código.'];
+function partir(t){
+  const p=t.split(/^%%[ \t]*\r?$/m).map(x=>x.replace(/^\s*\n/,'').replace(/\s+$/,''));
+  return [p[0]||'',p[1]||'',p.slice(2).join('\n%%\n')];
+}
+const juntar=()=>SEC[0]+'\n\n%%\n'+SEC[1]+'\n\n%%\n'+SEC[2]+'\n';
+function textoL(){SEC[tabAct]=$('spec').value;return juntar()}
+function irTab(i){
+  SEC[tabAct]=$('spec').value;tabAct=i;$('spec').value=SEC[i];$('tabDesc').textContent=TDESC[i];
+  document.querySelectorAll('.tabs button').forEach(b=>{const on=+b.dataset.t===i;b.classList.toggle('on',on);b.setAttribute('aria-selected',on)});
+}
+function abrirL(editable){
+  SEC=partir(SPEC.texto);tabAct=0;$('spec').value=SEC[0];irTab(0);
+  $('dlgT').textContent=editable?'Experimentar con las reglas':'Especificación Lex del laboratorio';
+  $('spec').readOnly=!editable;$('spApl').style.display=$('spRes').style.display=editable?'':'none';
+  $('specMsg').className='';$('specMsg').textContent=editable?'Edita cualquier pestaña y pulsa «Aplicar reglas». Acciones válidas: TOKEN("N"), OMITIR("N"), ERROR("N").':'';
+  $('dlgL').showModal();
+}
+function aplicarReglas(){
+  const r=JSON.parse(llamar(1,textoL(),1)),m=$('specMsg');
+  if(!r.ok){m.className='er';m.textContent='✗ '+r.error;return}
+  SPEC=r;montarReglas();prev=null;
+  m.className='';m.textContent=`✓ ${r.reglas.length} reglas aplicadas.`+(r.avisos.length?' Avisos: '+r.avisos.join(' · '):'');
+  analizar(SRC,progName);
+}
+function restaurar(){
+  SPEC=JSON.parse(llamar(2,'',1));montarReglas();prev=null;SEC=partir(SPEC.texto);tabAct=0;$('spec').value=SEC[0];irTab(0);
+  $('specMsg').className='';$('specMsg').textContent='✓ Reglas originales restauradas.';analizar(SRC,progName);
+}
+function exportar(){
+  const f=D.lexemas.map(L=>({linea:L.linea,col:L.col,token:L.nombre,lexema:L.texto,yyleng:L.len,regla:L.regla,tipo:L.tipo}));
+  bajar('analisis_lexico.json',JSON.stringify({programa:progName,entrada:SRC,resumen:D.resumen,reglas:SPEC.reglas.map(r=>({n:r.id,nombre:r.nombre,patron:r.patron})),
+    tokens:f.filter(x=>x.tipo==='token'),omisiones:f.filter(x=>x.tipo==='omitir'),errores:f.filter(x=>x.tipo==='error'||x.tipo==='defecto')},null,2),'application/json');
+}
+function editar(){
+  const ed=$('codeEd'),abierto=ed.style.display!=='none';
+  if(!abierto){ed.value=SRC;ed.style.display='';$('codeBox').style.display='none';$('bEd').textContent='Aplicar código';ed.focus();return}
+  ed.style.display='none';$('codeBox').style.display='';$('bEd').textContent='Editar código';
+  if(ed.value!==SRC||!$('prog').querySelector('[value=custom]')){
+    let o=$('prog').querySelector('[value=custom]');if(!o){o=new Option('05 · Código propio','custom');$('prog').add(o)}
+    $('prog').value='custom';$('desc').textContent='Programa escrito por ti.';analizar(ed.value,'Código propio');
+  }
+}
+function cargarPrograma(v){
+  if($('codeEd').style.display!=='none'){$('codeEd').style.display='none';$('codeBox').style.display='';$('bEd').textContent='Editar código'}
+  const p=PROG[+v];$('desc').textContent=p.d;analizar(p.c,p.n);
+}
+
+/* ---- eventos de la interfaz ---- */
+$('prog').innerHTML=PROG.map((p,i)=>`<option value="${i}">${h(p.n)}</option>`).join('');
+$('prog').onchange=e=>{if(e.target.value!=='custom')cargarPrograma(e.target.value)};
+$('bNext').onclick=()=>ir(idx+1);$('bPrev').onclick=()=>ir(idx-1);$('bAct').onclick=sigAccion;$('bLin').onclick=sigLinea;
+$('bAll').onclick=()=>ir(EV.length-1);$('bRst').onclick=()=>ir(-1);
+$('soloC').onchange=render;$('verOm').onchange=render;
+$('rules').onclick=e=>{const r=e.target.closest('.rule');if(!r)return;const id=+r.dataset.id;prev=prev===id?null:id;render()};
+$('bEd').onclick=editar;$('bVer').onclick=()=>abrirL(false);$('bExp').onclick=()=>abrirL(true);
+$('bDes').onclick=()=>bajar('analizador.l',SPEC.texto);$('spDes').onclick=()=>bajar('analizador.l',textoL());
+document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>irTab(+b.dataset.t));
+$('spApl').onclick=aplicarReglas;$('spRes').onclick=restaurar;
+$('spCop').onclick=()=>{const t=textoL(),ok=()=>{$('specMsg').className='';$('specMsg').textContent='✓ Archivo .l copiado al portapapeles.'},no=()=>{$('specMsg').className='er';$('specMsg').textContent='No se pudo copiar; usa Descargar .l.'};
+  if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(t).then(ok,no);else no()};
+$('dlgX').onclick=()=>$('dlgL').close();$('bHow').onclick=()=>$('dlgH').showModal();$('dlgHX').onclick=()=>$('dlgH').close();
+$('bJson').onclick=exportar;
+document.onkeydown=e=>{
+  if(!D||$('dlgL').open||$('dlgH').open||/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName))return;
+  if(e.key==='ArrowRight'&&!$('bNext').disabled){e.preventDefault();ir(idx+1)}else if(e.key==='ArrowLeft'&&idx>=0){e.preventDefault();ir(idx-1)}
+};
+['bPrev','bNext','bAct','bLin','bAll','bRst'].forEach(b=>$(b).disabled=true);
+
+/* ---- conexión con C++/WebAssembly (Module se define ANTES de cargar lex_lab.js) ---- */
+function boot(){
+  try{
+    M=Module;
+    if(typeof M._lx_procesar!=='function')throw new Error('el .wasm no trae lx_procesar: usa lex_lab.cpp y recompila');
+    SPEC=JSON.parse(llamar(2,'',1));montarReglas();cargarPrograma(0);
+    $('st').textContent='· listo';
+  }catch(e){$('st').textContent='· ERROR: '+e.message;console.error(e)}
+}
+var Module={onRuntimeInitialized:boot,onAbort:w=>{$('st').textContent='· WASM abortó: '+w},print:console.log,printErr:console.error};
+</script>
+<script src="lex_lab.js" onerror="$('st').textContent='· no se pudo cargar lex_lab.js (compílalo y abre la página desde http://localhost:8000)'"></script>
+</body></html>
